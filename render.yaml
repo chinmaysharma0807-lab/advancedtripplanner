@@ -1,0 +1,35 @@
+# Render Blueprint: one web service that serves the API, Socket.IO and the built React app.
+# In Render: New → Blueprint → pick this repository. Values marked `sync: false` are asked for
+# during setup (see DEPLOY.md). MongoDB itself runs on MongoDB Atlas.
+services:
+  - type: web
+    name: tripsync
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm run build:prod
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "22"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: MONGODB_URI
+        sync: false
+      - key: TOMTOM_API_KEY
+        sync: false
+      - key: PROVIDER_USER_AGENT
+        sync: false
+      - key: TRUST_PROXY
+        value: "true"
+      - key: PROVIDER_MODE
+        value: live
+      # Lets you demonstrate live tracking with the clearly-labelled "Simulate walk" button.
+      # Set to "false" for a real deployment where only device GPS should be used.
+      - key: ALLOW_DEMO_SIMULATION
+        value: "true"
+      - key: LOCATION_RETENTION_DAYS
+        value: "30"
