@@ -1,8 +1,30 @@
 # TripSync — Real-Time Smart Trip Planner
 
-TripSync is a full-stack trip planner and live travel companion. You plan day-by-day itineraries, share your journey live with the people you choose, and the itinerary adapts as the trip happens: arrival detection, delay estimates, reschedule proposals you approve, weather flags and notifications, all backed by MongoDB and pushed over Socket.IO.
+TripSync is a full-stack trip planner and live travel companion. You plan day-by-day itineraries, share your journey live with the people you choose, and the itinerary adapts as the trip happens: arrival detection, live-traffic ETAs, reschedule proposals you approve, weather flags and notifications, all backed by MongoDB and pushed over Socket.IO.
 
-**Stack:** MongoDB + Mongoose · Node.js + Express · Socket.IO · React 18 (Vite) · Tailwind CSS · React Router · Axios · Leaflet + OpenStreetMap · Jest + Supertest · Vitest + Testing Library.
+**Live app:** https://advancedtripplanner.onrender.com (free hosting: the first visit after a quiet period takes about a minute to wake up)
+
+**Stack:** MongoDB + Mongoose · Node.js + Express · Socket.IO · React 18 (Vite) · Tailwind CSS · React Router · Axios · Leaflet + OpenStreetMap · TomTom Routing (live traffic) · Jest + Supertest · Vitest + Testing Library.
+
+![Trip overview with map, day-by-day itinerary and weather](docs/screenshots/trip-details.png)
+
+## Features
+
+- **Trip planning:** create trips with origin, destination, dates, time zone, budget (₹ by default), transport mode and interests. Duplicate trips, and see them grouped as upcoming, active or completed.
+- **Day-by-day itinerary:** drag-and-drop ordering, overlap and opening-hours warnings, fixed-time bookings, priorities, and travel times between stops calculated from real routes.
+- **Itinerary generation:** a rule-based generator built from real nearby places, or AI suggestions when an Anthropic API key is set.
+- **Live traffic:** with a TomTom key, driving times include live and predicted traffic. Each leg shows "+X min traffic", and the app warns when to leave earlier.
+- **Live tracking (opt-in):** share your position with trip members over Socket.IO. The app detects approaching, arrival and time spent at a stop, and never marks an activity done from location alone.
+- **Delays and rescheduling:** when you run late, TripSync proposes a new schedule that shifts or skips flexible activities. Nothing changes until you approve it.
+- **Collaboration:** invite people as editors or viewers, or share a read-only link. Every change is recorded in an activity log.
+- **Notifications:** arrivals, delays, traffic, weather and collaborator activity, delivered live and never duplicated.
+- **Weather and nearby places:** forecasts from Open-Meteo, outdoor-activity rain warnings, and recommendations from OpenStreetMap.
+- **Expenses:** per-trip spending by category, splits between members and budget warnings, with Indian number formatting (₹1,20,000).
+- **Honest data:** demo and estimated values are always labelled. Nothing is invented and shown as live.
+
+| Live tracking | Trip dashboard |
+| --- | --- |
+| ![Live tracking with route, ETA and traffic](docs/screenshots/live-tracking.png) | ![Dashboard listing trips](docs/screenshots/dashboard.png) |
 
 ---
 
@@ -20,14 +42,16 @@ TripSync is a full-stack trip planner and live travel companion. You plan day-by
 10. [Security](#security)
 11. [REST API](#rest-api)
 12. [Socket.IO events](#socketio-events)
-13. [Troubleshooting](#troubleshooting)
+13. [Deployment](#deployment)
+14. [Troubleshooting](#troubleshooting)
 
 ---
 
 ## Quick start
 
 ```bash
-cd tripsync
+git clone https://github.com/chinmaysharma0807-lab/advancedtripplanner.git
+cd advancedtripplanner
 cp .env.example .env          # then set JWT_SECRET (see below)
 npm run install:all           # installs server/ and client/ dependencies
 npm run seed                  # optional: sample users, trips and expenses
@@ -37,7 +61,7 @@ npm run dev:client            # terminal 2 → app on http://localhost:5173
 
 Open http://localhost:5173 and sign in with a [sample account](#sample-data), or register a new one.
 
-**Deploying?** See [DEPLOY.md](DEPLOY.md) for the step-by-step guide (MongoDB Atlas + Render, about 30 minutes).
+**Deploying?** See [Deployment](#deployment) below and [DEPLOY.md](DEPLOY.md) for the step-by-step guide (MongoDB Atlas + Render, about 30 minutes).
 
 ## Prerequisites
 
@@ -58,13 +82,15 @@ You need internet access for map tiles, routing, geocoding, weather and places, 
 
 ## Configuration
 
-All settings live in a single `.env` at the repository root (`tripsync/.env`). The server reads it, and Vite reads `VITE_*` variables from the same folder. Every variable is documented in [`.env.example`](.env.example). The important ones:
+All settings live in a single `.env` at the repository root. The server reads it, and Vite reads `VITE_*` variables from the same folder. Every variable is documented in [`.env.example`](.env.example). The important ones:
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `MONGODB_URI` | `mongodb://127.0.0.1:27017/tripsync` | Database connection string. Atlas strings without a database name use `tripsync` (override with `MONGODB_DB_NAME`). If your system DNS refuses Atlas SRV lookups, the server falls back to public DNS (or set `MONGODB_DNS_SERVERS`) |
 | `JWT_SECRET` | *(required in production)* | Signs session tokens. Generate one with `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"` |
-| `CLIENT_URL` | `http://localhost:5173` | Allowed browser origin(s) for CORS and Socket.IO (comma separated) |
+| `CLIENT_URL` | `http://localhost:5173` (on Render: the service's own URL) | Allowed browser origin(s) for CORS and Socket.IO (comma separated). Only needed when the React app is hosted on a different site |
+| `PROVIDER_USER_AGENT` | `TripSync/1.0 (self-hosted trip planner)` | Identifies the app to OpenStreetMap services. Put a contact email in it for public deployments |
+| `TRUST_PROXY` | `false` (`true` on Render) | Set to `true` behind a load balancer or reverse proxy so rate limits see real client IPs |
 | `PORT` | `4000` | API port |
 | `PROVIDER_MODE` | `live` | `live` uses the real providers below; `demo` uses clearly labelled mock data and makes no external calls |
 | `AI_API_KEY` | empty | Anthropic API key for optional AI itinerary generation. Empty means the rule-based generator is used |
@@ -96,7 +122,7 @@ NODE_ENV=production JWT_SECRET=... npm start
 
 When `client/dist` exists, the Express server also serves the built app (with an SPA fallback), so http://localhost:4000 is the whole product. In production, cookies are `Secure` (serve over HTTPS). If the client and API live on different sites, set `CROSS_SITE_COOKIES=true` (this uses `SameSite=None` together with the CSRF check) and list the client origin in `CLIENT_URL`.
 
-Root scripts (`tripsync/package.json`):
+Root scripts (`package.json`):
 
 | Script | Does |
 | --- | --- |
@@ -132,7 +158,7 @@ Travel times are calculated with the configured routing provider while seeding. 
 
 ```bash
 npm test                     # everything
-npm test --prefix server     # Jest + Supertest + socket.io-client (66 tests)
+npm test --prefix server     # Jest + Supertest + socket.io-client (67 tests)
 npm test --prefix client     # Vitest + Testing Library (8 tests)
 ```
 
@@ -156,7 +182,7 @@ npm test --prefix client     # Vitest + Testing Library (8 tests)
 ## Architecture
 
 ```
-tripsync/
+advancedtripplanner/
 ├── client/                      React (Vite) app
 │   └── src/
 │       ├── components/          Map, itinerary views, forms, proposal card, panels, UI kit
@@ -182,9 +208,13 @@ tripsync/
 │   │   │   │                    expenses, generator, access control, change log)
 │   │   │   └── providers/       routing, geocoding, weather, places, AI adapters
 │   │   ├── sockets/             Socket.IO server + broadcast helper
-│   │   ├── jobs/                cron jobs (schedule sweep, weather, stale sessions)
+│   │   ├── jobs/                cron jobs (schedule sweep, weather, traffic, stale sessions)
 │   │   └── seed/                sample data
 │   └── tests/
+├── docs/screenshots/            images used in this README
+├── Dockerfile                   single-container build (used by Render)
+├── render.yaml                  Render Blueprint
+├── DEPLOY.md                    step-by-step deployment guide
 ├── .env.example
 └── README.md
 ```
@@ -353,11 +383,40 @@ The handshake is authenticated with the session cookie. Every client→server ev
 
 State is persisted before every broadcast. Reconnecting clients re-join their rooms and re-fetch from the REST API, so nothing depends on having received every event.
 
+## Deployment
+
+The live app runs as **one Render web service** built from the [`Dockerfile`](Dockerfile): the Express server serves the API, Socket.IO and the built React app from the same URL, so there is no separate frontend host and no CORS setup. The database is a free **MongoDB Atlas M0** cluster.
+
+```
+Browser ──HTTPS──► Render web service (Docker, Node 22)
+                     ├── /            React app (client/dist)
+                     ├── /api/*       REST API
+                     ├── /socket.io   live updates
+                     └── cron jobs    reminders, weather, traffic, missed activities
+                            │
+                            ├──► MongoDB Atlas (tripsync database)
+                            └──► TomTom · OSRM · Nominatim · Open-Meteo · Overpass
+```
+
+Render service settings:
+
+| Setting | Value |
+| --- | --- |
+| Runtime | Docker (or Node with build `npm run build:prod` and start `npm start`) |
+| Root directory | *(empty: the repository root)* |
+| Branch | `main` (every push redeploys automatically) |
+| Health check path | `/api/health` |
+| Environment | `MONGODB_URI`, `JWT_SECRET`, `TOMTOM_API_KEY`, `PROVIDER_USER_AGENT`, `NODE_ENV=production`, `TRUST_PROXY=true`, `PROVIDER_MODE=live`, `ALLOW_DEMO_SIMULATION`, `LOCATION_RETENTION_DAYS` |
+
+Atlas needs `0.0.0.0/0` in **Network Access**, because Render's free plan has no fixed outgoing IP. The database stays protected by its username and password. The full walkthrough, free-tier limits and a security checklist are in [DEPLOY.md](DEPLOY.md).
+
 ## Troubleshooting
 
 | Symptom | Fix |
 | --- | --- |
 | `MongooseServerSelectionError` on start | MongoDB isn't running or `MONGODB_URI` is wrong. Check with `mongosh "mongodb://127.0.0.1:27017"` |
+| Render: "Could not connect to any servers in your MongoDB Atlas cluster" | Add `0.0.0.0/0` to Atlas **Network Access**, then redeploy |
+| Render build: "`npm ci` can only install packages when your package.json and package-lock.json are in sync" | Run `npm install` in that folder, commit the updated `package-lock.json` and push |
 | `JWT_SECRET must be set in production` | Set `JWT_SECRET` in `.env` |
 | Login works but you are logged out immediately / 401s | Open the app through the Vite URL (`:5173`), not `:4000`, in development. Check that `CLIENT_URL` matches the origin |
 | `403 CSRF_INVALID` | Cookies were cleared mid-session. Reload the page (the client refreshes the token automatically once) |

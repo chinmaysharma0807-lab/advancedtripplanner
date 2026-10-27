@@ -68,6 +68,23 @@ To publish later changes, commit them and run `git push`.
    `https://tripsync-xxxx.onrender.com/api/health` returns `{"status":"ok","db":"up",…}`.
 6. Register an account in the app and start planning.
 
+✅ Live at https://advancedtripplanner.onrender.com (a Render web service named `advancedtripplanner`).
+
+**Without the Blueprint:** **New + → Web Service → `advancedtripplanner`** works too. Leave **Root
+Directory** empty. Render detects the `Dockerfile` and uses the Docker runtime; with the Node runtime
+instead, use build command `npm run build:prod` and start command `npm start`. Set the health check
+path to `/api/health`, and add the environment variables yourself: the three above plus
+`JWT_SECRET` (click **Generate**), `NODE_ENV=production`, `TRUST_PROXY=true`, `PROVIDER_MODE=live`,
+`ALLOW_DEMO_SIMULATION=true` and `LOCATION_RETENTION_DAYS=30`.
+
+### If the deploy fails
+
+| Log message | Fix |
+| --- | --- |
+| `npm ci can only install packages when your package.json and package-lock.json … are in sync` | Run `npm install` in `server/` or `client/`, commit `package-lock.json`, push |
+| `Exited with status 1` after `Could not connect to any servers in your MongoDB Atlas cluster` | Atlas → **Network Access** → add `0.0.0.0/0`, wait for **Active**, then **Manual Deploy → Deploy latest commit** |
+| `JWT_SECRET must be set in production` | Add `JWT_SECRET` in Render → **Environment** (click **Generate**) |
+
 ### Optional after deploying
 
 - **Sample data:** to load the demo trips into Atlas, run this on your own machine (PowerShell, in

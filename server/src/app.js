@@ -60,6 +60,8 @@ function createApp() {
   // In production the built React app (client/dist) can be served by this same process.
   const clientDist = path.resolve(__dirname, '../../client/dist');
   if (!env.isTest && fs.existsSync(path.join(clientDist, 'index.html'))) {
+    // Vite puts a content hash in every /assets file name, so those never change and can be cached for good.
+    app.use('/assets', express.static(path.join(clientDist, 'assets'), { maxAge: '1y', immutable: true }), notFoundHandler);
     app.use(express.static(clientDist, { index: false, maxAge: '1h' }));
     app.get(/^\/(?!api\/|socket\.io\/).*/, (req, res) => res.sendFile(path.join(clientDist, 'index.html')));
   }
