@@ -43,18 +43,17 @@ Live traffic on your own machine needs the key in `tripsync/.env`:
 
 ## 3. Put the code on GitHub (YOU + Claude)
 
-1. **YOU:** at https://github.com/new create an **empty private** repository named `tripsync`
-   (no README, no .gitignore, no license).
-2. Send Claude the repository URL. Claude adds it as the remote and pushes the code. Git may open
-   a GitHub sign-in window the first time: sign in there.
+✅ Done: the code is on GitHub at
+https://github.com/chinmaysharma0807-lab/advancedtripplanner (branch `main`).
+To publish later changes, commit them and run `git push`.
 
 `.env` is ignored by git, so your keys and passwords are never uploaded.
 
 ## 4. Deploy on Render (YOU)
 
-1. Sign up at https://render.com with your GitHub account, and allow access to the `tripsync`
-   repository.
-2. Click **New + → Blueprint** and select the `tripsync` repository. Render reads `render.yaml`.
+1. Sign up at https://render.com with your GitHub account, and allow access to the
+   `advancedtripplanner` repository.
+2. Click **New + → Blueprint** and select `advancedtripplanner`. Render reads `render.yaml`.
 3. Fill in the values it asks for:
 
    | Variable | Value |
