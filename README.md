@@ -3,6 +3,7 @@
 TripSync is a full-stack trip planner and live travel companion. You plan day-by-day itineraries, share your journey live with the people you choose, and the itinerary adapts as the trip happens: arrival detection, live-traffic ETAs, reschedule proposals you approve, weather flags and notifications, all backed by MongoDB and pushed over Socket.IO.
 
 **Live app:** https://advancedtripplanner.onrender.com (free hosting: the first visit after a quiet period takes about a minute to wake up)
+
 **Google drive link**: https://drive.google.com/drive/folders/1ATBc6EVU32IBtlAQOY466WtO8A2cIHrl
 
 **Stack:** MongoDB + Mongoose · Node.js + Express · Socket.IO · React 18 (Vite) · Tailwind CSS · React Router · Axios · Leaflet + OpenStreetMap · TomTom Routing (live traffic) · Jest + Supertest · Vitest + Testing Library.
