@@ -62,7 +62,7 @@ All settings live in a single `.env` at the repository root (`tripsync/.env`). T
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `MONGODB_URI` | `mongodb://127.0.0.1:27017/tripsync` | Database connection string |
+| `MONGODB_URI` | `mongodb://127.0.0.1:27017/tripsync` | Database connection string. Atlas strings without a database name use `tripsync` (override with `MONGODB_DB_NAME`). If your system DNS refuses Atlas SRV lookups, the server falls back to public DNS (or set `MONGODB_DNS_SERVERS`) |
 | `JWT_SECRET` | *(required in production)* | Signs session tokens. Generate one with `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"` |
 | `CLIENT_URL` | `http://localhost:5173` | Allowed browser origin(s) for CORS and Socket.IO (comma separated) |
 | `PORT` | `4000` | API port |
@@ -242,7 +242,7 @@ These rules hold throughout the app:
    - **delay:** if the ETA is later than the start plus `delayGraceMinutes`, the stop is marked delayed and an ETA notification is sent (deduplicated per 10-minute bucket). Past `proposalThresholdMinutes` a **reschedule proposal** is created.
    - **deviation:** two consecutive fixes more than `deviationThresholdMeters` (or twice the GPS accuracy) from the leg route trigger a warning and a reroute.
    - Fixes with poor accuracy (worse than 150 m) are stored but never drive geofence decisions.
-   - **traffic:** with TomTom, each route recalculation during tracking uses live traffic (refreshed at least every 5 min, cached 2 min). When traffic adds at least `TRAFFIC_DELAY_NOTIFY_MINUTES` and 15% of the no-traffic time, the traveller gets a `traffic_delay` notification saying whether they will still be on time. It is deduplicated per 10-minute delay bucket.
+   - **traffic:** with TomTom, each route recalculation during tracking uses live traffic (refreshed at least every 5 min, cached 2 min). When traffic (live travel time minus TomTom's empty-road time, so everyday congestion counts, not only incidents) adds at least `TRAFFIC_DELAY_NOTIFY_MINUTES` and 15% of the no-traffic time, the traveller gets a `traffic_delay` notification saying whether they will still be on time. It is deduplicated per 10-minute delay bucket.
    - **leave-earlier warnings:** every 10 minutes a job checks the next driving leg (within 3 hours) of active trips that nobody is tracking. It refreshes that leg's travel time with live traffic, and notifies members with a "leave by HH:MM" time when traffic matters.
    - Itinerary travel times use predicted traffic for the time you leave the previous stop, and show "+X min traffic" between stops.
 4. **Rescheduling:** proposals shift flexible activities, never move fixed-time bookings (they warn instead), and suggest skipping low/medium-priority activities that would run past closing time, the end of the day or into a booking. High and "must do" priorities are kept with a warning. Every proposal explains its basis, and nothing changes until an editor applies it (individual changes can be excluded). Travellers without GPS can report a delay manually ("Running late? 15 min").

@@ -286,7 +286,7 @@ async function processLocation({ trip, session, fix, user }) {
         type: 'traffic_delay',
         severity: late ? 'warning' : 'info',
         title: `Traffic on the way to ${target.title}`,
-        message: `Traffic adds about ${trafficMin} min (${session.leg.source} ${session.leg.trafficKind || 'live'} traffic). ${
+        message: `Traffic adds about ${trafficMin} min compared with empty roads (${session.leg.source} ${session.leg.trafficKind || 'live'} traffic). ${
           late ? `You are now expected about ${delayMinutes} min after the planned start.` : 'You should still arrive on time.'
         }`,
         data: { itemId: String(target._id), trafficDelayMinutes: trafficMin, eta },

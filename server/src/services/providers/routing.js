@@ -11,7 +11,8 @@ const { fetchJson, TtlCache, ProviderError } = require('./http');
  *     source, isDemo, isEstimate,
  *     trafficAware,            // true only when the provider applied traffic to this route
  *     trafficKind,             // 'live' (departing now) | 'predicted' (future departure) | null
- *     trafficDelay,            // seconds added by traffic (traffic-aware routes only)
+ *     trafficDelay,            // seconds traffic adds versus empty roads (traffic-aware routes only)
+ *     incidentDelay,           // part of that caused by live incidents/jams (TomTom trafficDelayInSeconds)
  *     noTrafficDuration        // seconds without traffic, when the provider reports it
  *   }
  * Adapters throw ProviderError when the provider cannot answer; callers decide how to degrade.
@@ -93,6 +94,12 @@ const tomtom = {
     const r = json.routes?.[0];
     if (!r) throw new ProviderError('tomtom', 'TomTom could not find a route', { retryable: false });
     const s = r.summary;
+    // TomTom's trafficDelayInSeconds only counts live incidents. What a traveller feels is the whole
+    // difference between the live travel time and free-flow (empty-road) travel time.
+    const congestion = (sum) =>
+      Number.isFinite(sum.noTrafficTravelTimeInSeconds)
+        ? Math.max(0, sum.travelTimeInSeconds - sum.noTrafficTravelTimeInSeconds, sum.trafficDelayInSeconds || 0)
+        : sum.trafficDelayInSeconds || 0;
     return {
       distance: s.lengthInMeters,
       duration: s.travelTimeInSeconds,
@@ -100,14 +107,15 @@ const tomtom = {
       legs: (r.legs || []).map((l) => ({
         distance: l.summary.lengthInMeters,
         duration: l.summary.travelTimeInSeconds,
-        trafficDelay: withTraffic ? l.summary.trafficDelayInSeconds || 0 : 0,
+        trafficDelay: withTraffic ? congestion(l.summary) : 0,
       })),
       source: 'tomtom',
       isDemo: false,
       isEstimate: false,
       trafficAware: withTraffic,
       trafficKind: withTraffic ? (departAt ? 'predicted' : 'live') : null,
-      trafficDelay: withTraffic ? s.trafficDelayInSeconds || 0 : 0,
+      trafficDelay: withTraffic ? congestion(s) : 0,
+      incidentDelay: withTraffic ? s.trafficDelayInSeconds || 0 : 0,
       noTrafficDuration: s.noTrafficTravelTimeInSeconds ?? null,
       arrivalTime: s.arrivalTime || null,
     };

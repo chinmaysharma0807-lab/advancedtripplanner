@@ -73,10 +73,21 @@ describe('TomTom adapter', () => {
     const url = new URL(fetchSpy.mock.calls[0][0]);
     expect(url.pathname).toBe(`/routing/1/calculateRoute/${A.lat.toFixed(6)},${A.lng.toFixed(6)}:${B.lat.toFixed(6)},${B.lng.toFixed(6)}/json`);
     expect(Object.fromEntries(url.searchParams)).toMatchObject({ key: 'test-tomtom-key', travelMode: 'car', traffic: 'true', departAt: 'now', computeTravelTimeFor: 'all' });
-    expect(r).toMatchObject({ source: 'tomtom', distance: 15200, duration: 1980, trafficAware: true, trafficKind: 'live', trafficDelay: 540, noTrafficDuration: 1440, isEstimate: false });
+    expect(r).toMatchObject({ source: 'tomtom', distance: 15200, duration: 1980, trafficAware: true, trafficKind: 'live', trafficDelay: 540, incidentDelay: 540, noTrafficDuration: 1440, isEstimate: false });
     expect(r.geometry).toHaveLength(3);
     expect(r.legs[0]).toEqual({ distance: 15200, duration: 1980, trafficDelay: 540 });
     expect(providers.describeProviders()).toMatchObject({ routing: 'tomtom', trafficAware: true });
+  });
+
+  test('counts everyday congestion, not only incidents', async () => {
+    useTomTom();
+    const congested = JSON.parse(JSON.stringify(tomtomResponse));
+    Object.assign(congested.routes[0].summary, { travelTimeInSeconds: 3180, noTrafficTravelTimeInSeconds: 2160, trafficDelayInSeconds: 120 });
+    Object.assign(congested.routes[0].legs[0].summary, { travelTimeInSeconds: 3180, noTrafficTravelTimeInSeconds: 2160, trafficDelayInSeconds: 120 });
+    jest.spyOn(global, 'fetch').mockResolvedValue(ok(congested));
+    const r = await providers.routing.route([A, B], 'driving');
+    expect(r).toMatchObject({ trafficDelay: 1020, incidentDelay: 120 }); // 53 min live vs 36 min empty roads
+    expect(r.legs[0].trafficDelay).toBe(1020);
   });
 
   test('walking routes are not traffic-aware and future departures are labelled predicted', async () => {
@@ -136,7 +147,7 @@ describe('traffic_delay notifications', () => {
 
     const notes = await Notification.find({ userId: user.id, type: 'traffic_delay' });
     expect(notes).toHaveLength(1);
-    expect(notes[0].message).toMatch(/Traffic adds about 12 min \(tomtom live traffic\)\. You should still arrive on time/);
+    expect(notes[0].message).toMatch(/Traffic adds about 12 min compared with empty roads \(tomtom live traffic\)\. You should still arrive on time/);
   });
 
   test('routes without traffic data never produce traffic notifications', async () => {
@@ -172,7 +183,7 @@ describe('traffic_delay notifications', () => {
     expect(item).toMatchObject({ estimatedTravelTime: 30, trafficDelayMinutes: 12, trafficKind: 'live', travelSource: 'tomtom' });
     const [note] = await Notification.find({ userId: user.id, type: 'traffic_delay' });
     expect(note.severity).toBe('warning'); // a 30 min drive for a stop 20 min away: leaving now is already late
-    expect(note.message).toMatch(/Live traffic adds about 12 min from "India Gate"/);
+    expect(note.message).toMatch(/Live traffic adds about 12 min \(compared with empty roads\) from "India Gate"/);
 
     await checkTraffic();
     expect(await Notification.countDocuments({ userId: user.id, type: 'traffic_delay' })).toBe(1);

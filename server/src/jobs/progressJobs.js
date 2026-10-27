@@ -175,7 +175,7 @@ async function checkTraffic(now = new Date()) {
       type: 'traffic_delay',
       severity: leaveBy < now ? 'warning' : 'info',
       title: `Traffic on the way to ${next.title}`,
-      message: `Live traffic adds about ${trafficMin} min from "${prev.title}" (${r.source}). ${
+      message: `Live traffic adds about ${trafficMin} min (compared with empty roads) from "${prev.title}" (${r.source}). ${
         leaveBy < now
           ? `Leaving now, you would arrive about ${Math.round((now - leaveBy) / MINUTE)} min late.`
           : `Leave by ${localTimeOfDay(leaveBy, trip.timezone)} to arrive at ${localTimeOfDay(next.scheduledStart, trip.timezone)}.`
